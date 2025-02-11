@@ -112,64 +112,47 @@ RUN { \
 
 RUN { \
     set -e && \
-    echo "Fix symbollic link" && \
+    echo "Fix symbolic link" && \
     wget https://raw.githubusercontent.com/riscv/riscv-poky/master/scripts/sysroot-relativelinks.py && \
     chmod +x sysroot-relativelinks.py && \
     python3 sysroot-relativelinks.py /build/sysroot && \
     mkdir -p qt6 qt6/host qt6/pi qt6/host-build qt6/pi-build qt6/src && \
     cd qt6/src && \
-    wget https://download.qt.io/official_releases/qt/6.8/6.8.1/submodules/qtbase-everywhere-src-6.8.1.tar.xz && \
-    wget https://download.qt.io/official_releases/qt/6.8/6.8.1/submodules/qtshadertools-everywhere-src-6.8.1.tar.xz && \
-    wget https://download.qt.io/official_releases/qt/6.8/6.8.1/submodules/qtdeclarative-everywhere-src-6.8.1.tar.xz && \
+    for module in qtbase qtshadertools qtdeclarative qtsvg qtserialport qtvirtualkeyboard qtactiveqt qtcharts qtconnectivity qtdatavis3d qt5compat qtimageformats qtlanguageserver qtlottie qtmultimedia qtnetworkauth qtpositioning qtquick3d qtquick3dphysics qtquickeffectmaker qtquicktimeline qtremoteobjects qtscxml qtsensors qtserialbus qtspeech qttools qttranslations qtwayland qtwebchannel qtwebengine qtwebsockets qtwebview; do \
+      wget https://download.qt.io/official_releases/qt/6.7/6.7.1/submodules/${module}-everywhere-src-6.7.1.tar.xz; \
+    done && \
     cd ../host-build && \
-    tar xf ../src/qtbase-everywhere-src-6.8.1.tar.xz && \
-    tar xf ../src/qtshadertools-everywhere-src-6.8.1.tar.xz && \
-    tar xf ../src/qtdeclarative-everywhere-src-6.8.1.tar.xz && \
+    for file in ../src/*.tar.xz; do tar xf $file; done && \
     echo "Compile qtbase for host" && \
-    cd qtbase-everywhere-src-6.8.1 && \
-    cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
-        -DQT_BUILD_EXAMPLES=OFF \
-        -DQT_BUILD_TESTS=OFF \
-        -DCMAKE_INSTALL_PREFIX=/build/qt6/host && \
-    cmake --build . --parallel 4 && \
+    cd qtbase-everywhere-src-6.7.1 && \
+    cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/build/qt6/host && \
+    cmake --build . --parallel $(nproc) && \
     cmake --install . && \
-    echo "Compile shader for host" && \
-    cd ../qtshadertools-everywhere-src-6.8.1 && \
-    /build/qt6/host/bin/qt-configure-module . && \
-    cmake --build . --parallel 4 && \
-    cmake --install . && \
-    echo "Compile declerative for host" && \
-    cd ../qtdeclarative-everywhere-src-6.8.1 && \
-    /build/qt6/host/bin/qt-configure-module . && \
-    cmake --build . --parallel 4 && \
-    cmake --install . && \
-    cd ../../pi-build && \
-    tar xf ../src/qtbase-everywhere-src-6.8.1.tar.xz && \
-    tar xf ../src/qtshadertools-everywhere-src-6.8.1.tar.xz && \
-    tar xf ../src/qtdeclarative-everywhere-src-6.8.1.tar.xz && \
+    cd .. && \
+    for module in qtshadertools qtdeclarative qtsvg qtserialport qtvirtualkeyboard qtactiveqt qtcharts qtconnectivity qtdatavis3d qt5compat qtimageformats qtlanguageserver qtlottie qtmultimedia qtnetworkauth qtpositioning qtquick3d qtquick3dphysics qtquickeffectmaker qtquicktimeline qtremoteobjects qtscxml qtsensors qtserialbus qtspeech qttools qttranslations qtwayland qtwebchannel qtwebengine qtwebsockets qtwebview; do \
+      echo "Compile $module for host" && \
+      cd ${module}-everywhere-src-6.7.1 && \
+      /build/qt6/host/bin/qt-configure-module . && \
+      cmake --build . --parallel $(nproc) && \
+      cmake --install . && \
+      cd ..; \
+    done && \
+    cd ../pi-build && \
+    for file in ../src/*.tar.xz; do tar xf $file; done && \
     echo "Compile qtbase for rasp" && \
-    cd qtbase-everywhere-src-6.8.1 && \
-    cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DINPUT_opengl=es2 \
-        -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
-        -DQT_HOST_PATH=/build/qt6/host \
-        -DCMAKE_STAGING_PREFIX=/build/qt6/pi \
-        -DCMAKE_INSTALL_PREFIX=/usr/local/qt6 \
-        -DCMAKE_TOOLCHAIN_FILE=/build/toolchain.cmake \
-        -DQT_FEATURE_xcb=ON -DFEATURE_xcb_xlib=ON \
-        -DFEATURE_sql_psql=ON \
-        -DQT_FEATURE_xlib=ON && \
-    cmake --build . --parallel 4 && \
+    cd qtbase-everywhere-src-6.7.1 && \
+    cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DINPUT_opengl=es2 -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF -DQT_HOST_PATH=/build/qt6/host -DCMAKE_STAGING_PREFIX=/build/qt6/pi -DCMAKE_INSTALL_PREFIX=/usr/local/qt6 -DCMAKE_TOOLCHAIN_FILE=/build/toolchain.cmake -DQT_FEATURE_xcb=ON -DFEATURE_xcb_xlib=ON -DQT_FEATURE_xlib=ON && \
+    cmake --build . --parallel $(nproc) && \
     cmake --install . && \
-    echo "Compile shader for rasp" && \
-    cd ../qtshadertools-everywhere-src-6.8.1 && \
-    /build/qt6/pi/bin/qt-configure-module . && \
-    cmake --build . --parallel 4 && \
-    cmake --install . && \
-    echo "Compile declerative for rasp" && \
-    cd ../qtdeclarative-everywhere-src-6.8.1 && \
-    /build/qt6/pi/bin/qt-configure-module . && \
-    cmake --build . --parallel 4 && \
-    cmake --install . && \
+    cd .. && \
+    for module in qtshadertools qtdeclarative qtsvg qtserialport qtvirtualkeyboard qtactiveqt qtcharts qtconnectivity qtdatavis3d qt5compat qtimageformats qtlanguageserver qtlottie qtmultimedia qtnetworkauth qtpositioning qtquick3d qtquick3dphysics qtquickeffectmaker qtquicktimeline qtremoteobjects qtscxml qtsensors qtserialbus qtspeech qttools qttranslations qtwayland qtwebchannel qtwebengine qtwebsockets qtwebview; do \
+      echo "Compile $module for rasp" && \
+      cd ${module}-everywhere-src-6.7.1 && \
+      /build/qt6/pi/bin/qt-configure-module . && \
+      cmake --build . --parallel $(nproc) && \
+      cmake --install . && \
+      cd ..; \
+    done && \
     echo "Compilation is finished"; \
 } 2>&1 | tee -a /build.log
 
